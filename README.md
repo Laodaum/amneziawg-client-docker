@@ -27,7 +27,7 @@ Run an AmneziaWG peer in a Docker container. Allows routing of specific Docker n
     --cap-add=NET_ADMIN \
     --cap-add=SYS_MODULE \
     --restart always \
-    ghcr.io/zeozeozeo/amneziawg-client-docker
+    ghcr.io/zeozeozeo/amneziawg-client
    ```
 
    If you'd like to have access to the VPN network from the host, make it run on the host network:
@@ -41,5 +41,5 @@ Run an AmneziaWG peer in a Docker container. Allows routing of specific Docker n
     --cap-add=NET_ADMIN \
     --cap-add=SYS_MODULE \
     --restart always \
-    ghcr.io/zeozeozeo/amneziawg-client-docker
+    ghcr.io/zeozeozeo/amneziawg-client
    ```
