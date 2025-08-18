@@ -72,13 +72,13 @@ jobs:
             type=raw,value=${{ env.VERSION }}-${{ matrix.platform_name }}
             type=sha,format=long
 
-      - name: Build and push
+      - name: Build and push platform-specific image
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: ${{ matrix.platform }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-${{ matrix.platform_name }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             AWGTOOLS_RELEASE=${{ env.VERSION }}
@@ -86,14 +86,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Create manifest for multi-arch
+      - name: Create and push manifest
         if: matrix.platform == 'linux/amd64' # only run once
         run: |
+          # pull the platform-specific images
+          docker pull ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64
+          docker pull ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
+          
+          # create and push version manifest
           docker manifest create ${{ env.IMAGE_NAME }}:${{ env.VERSION }} \
-            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
-            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
+            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
+            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
           docker manifest push ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          
+          # create and push latest manifest
           docker manifest create ${{ env.IMAGE_NAME }}:latest \
-            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
-            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
+            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
+            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
           docker manifest push ${{ env.IMAGE_NAME }}:latest
