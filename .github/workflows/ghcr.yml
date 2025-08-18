@@ -18,33 +18,19 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
-    strategy:
-      matrix:
-        platform: [linux/amd64, linux/arm64]
-        include:
-          - platform: linux/amd64
-            platform_name: amd64
-          - platform: linux/arm64
-            platform_name: arm64
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get current date for version tag
-        id: date
-        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_ENV
-
-      - name: Set version based on tag or date
+      - name: Set version
         id: version
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
           else
-            echo "VERSION=$DATE" >> $GITHUB_ENV
+            echo "VERSION=$(date +'%Y%m%d')" >> $GITHUB_ENV
           fi
-          echo "Using version: $VERSION"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -61,48 +47,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ env.VERSION }}
-            type=raw,value=${{ env.VERSION }}-${{ matrix.platform_name }}
-            type=sha,format=long
-
-      - name: Build and push platform-specific image
+      - name: Build and push multi-arch images
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-${{ matrix.platform_name }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
           build-args: |
             AWGTOOLS_RELEASE=${{ env.VERSION }}
-            TARGETARCH=${{ matrix.platform_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Create and push manifest
-        if: matrix.platform == 'linux/amd64' # only run once
-        run: |
-          # login again to ensure auth for manifest operations
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          
-          # waiting to ensure images are available
-          sleep 10
-          
-          # create version manifest
-          docker manifest create ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }} \
-            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-amd64 \
-            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-arm64
-          docker manifest push ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}
-          
-          # create latest manifest
-          docker manifest create ghcr.io/zeozeozeo/amneziawg-client:latest \
-            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-amd64 \
-            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-arm64
-          docker manifest push ghcr.io/zeozeozeo/amneziawg-client:latest
