@@ -51,16 +51,10 @@ RUN git clone https://github.com/amnezia-vpn/amneziawg-tools.git /amneziawg-tool
 # copy the amneziawg-go binary from builder stage
 COPY --from=builder /amneziawg-go/amneziawg-go /usr/bin/
 
-# create non-root user and directories
-RUN addgroup -S amnezia && adduser -S amnezia -G amnezia \
-    && mkdir -p /config /etc/amnezia/amneziawg \
-    && chown -R amnezia:amnezia /config /etc/amnezia
-
 COPY init.sh /init.sh
 RUN chmod +x /init.sh
 
 HEALTHCHECK --interval=1m --timeout=5s --retries=3 \
     CMD /usr/bin/timeout 5s /bin/sh -c "awg show | grep interface || exit 1"
 
-USER amnezia
 ENTRYPOINT ["/usr/bin/dumb-init", "/init.sh"]
