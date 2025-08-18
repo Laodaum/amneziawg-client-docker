@@ -89,18 +89,20 @@ jobs:
       - name: Create and push manifest
         if: matrix.platform == 'linux/amd64' # only run once
         run: |
-          # pull the platform-specific images
-          docker pull ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64
-          docker pull ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
+          # login again to ensure auth for manifest operations
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           
-          # create and push version manifest
-          docker manifest create ${{ env.IMAGE_NAME }}:${{ env.VERSION }} \
-            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
-            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
-          docker manifest push ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          # waiting to ensure images are available
+          sleep 10
           
-          # create and push latest manifest
-          docker manifest create ${{ env.IMAGE_NAME }}:latest \
-            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-amd64 \
-            --amend ${{ env.IMAGE_NAME }}:${{ env.VERSION }}-arm64
-          docker manifest push ${{ env.IMAGE_NAME }}:latest
+          # create version manifest
+          docker manifest create ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }} \
+            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-amd64 \
+            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-arm64
+          docker manifest push ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}
+          
+          # create latest manifest
+          docker manifest create ghcr.io/zeozeozeo/amneziawg-client:latest \
+            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-amd64 \
+            --amend ghcr.io/zeozeozeo/amneziawg-client:${{ env.VERSION }}-arm64
+          docker manifest push ghcr.io/zeozeozeo/amneziawg-client:latest
